@@ -8,9 +8,7 @@ index bc5298b6..d8f5ee0c 100644
  import * as os from 'os';
  import * as path from 'path';
  import * as exec from '@actions/exec';
-@@ -40,6 +41,13 @@ export class AzPSUtils {
-     }
-     
+@@ -42,3 +43,10 @@ export class AzPSUtils {
      private static pushPSModulePath(psModulePath: string) {
 +        const isGitHubHosted = process.env.RUNNER_ENVIRONMENT?.toLowerCase() === 'github-hosted';
 +        const entries = (process.env.PSModulePath || '').split(path.delimiter);

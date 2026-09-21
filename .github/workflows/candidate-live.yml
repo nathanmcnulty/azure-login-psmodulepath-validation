@@ -1,0 +1,63 @@
+name: Candidate live platform test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  login:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Check out candidate branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nathanmcnulty/login
+          ref: fix/psmodulepath-hosted-runner
+          path: action
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.x
+
+      - name: Build action
+        working-directory: action
+        run: |
+          npm ci
+          npm run build
+
+      - name: Log in with Azure PowerShell
+        uses: ./action
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+          enable-AzPSSession: true
+
+      - name: Verify context and module source
+        shell: pwsh
+        run: |
+          $context = Get-AzContext
+          $module = Get-Module Az.Accounts
+          if ($null -eq $context -or $context.Tenant.Id -ne '${{ vars.AZURE_TENANT_ID }}') {
+            throw 'Azure PowerShell context was not established for the expected tenant.'
+          }
+          if ($null -eq $module) {
+            throw 'Az.Accounts was not imported.'
+          }
+          [pscustomobject]@{
+            Tenant = $context.Tenant.Id
+            ModuleVersion = $module.Version.ToString()
+            ModuleBase = $module.ModuleBase
+            PSModulePath = $env:PSModulePath
+            ImageOS = $env:ImageOS
+            ImageVersion = $env:ImageVersion
+          } | ConvertTo-Json -Compress

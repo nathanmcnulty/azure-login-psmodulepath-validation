@@ -1,0 +1,35 @@
+name: Cold pwsh startup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: ${{ matrix.arm }}-${{ matrix.repetition }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [clean, prepend]
+        repetition: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Measure first pwsh process
+        env:
+          PREPEND_USR_SHARE: ${{ matrix.arm == 'prepend' }}
+          REPETITION: ${{ matrix.repetition }}
+        run: node scripts/measure-pwsh.mjs
+
+      - name: Upload raw sample
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sample-${{ matrix.arm }}-${{ matrix.repetition }}
+          path: results/*.json
+          if-no-files-found: error
+          retention-days: 30
